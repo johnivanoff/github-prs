@@ -4,6 +4,17 @@ require 'uri'
 require 'yaml'
 require 'dotenv/load'
 
+def fetch_repo_info(owner, repo)
+  uri = URI("https://api.github.com/repos/#{owner}/#{repo}")
+  req = Net::HTTP::Get.new(uri)
+  req['Accept']     = 'application/vnd.github+json'
+  req['User-Agent'] = 'ruby-github-client'
+  req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV['GITHUB_TOKEN']
+
+  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
+  JSON.parse(res.body)
+end
+
 def fetch_open_prs(owner, repo)
   uri = URI("https://api.github.com/repos/#{owner}/#{repo}/pulls?state=open")
   req = Net::HTTP::Get.new(uri)
@@ -46,7 +57,9 @@ def cmd_prs
     owner = entry['owner']
     repo  = entry['repo']
 
-    puts "=== #{owner}/#{repo} ==="
+    info     = fetch_repo_info(owner, repo)
+    archived = info['archived'] ? ' [ARCHIVED]' : ''
+    puts "=== #{owner}/#{repo}#{archived} ==="
     prs = fetch_open_prs(owner, repo)
 
     if prs.is_a?(Hash) && prs['message']
@@ -59,6 +72,50 @@ def cmd_prs
         puts "    Author : #{pr['user']['login']}"
         puts "    Branch : #{pr['head']['ref']} -> #{pr['base']['ref']}"
         puts "    URL    : #{pr['html_url']}"
+        puts
+      end
+    end
+    puts
+  end
+end
+
+def fetch_dependabot_alerts(owner, repo)
+  uri = URI("https://api.github.com/repos/#{owner}/#{repo}/dependabot/alerts?state=open&per_page=100")
+  req = Net::HTTP::Get.new(uri)
+  req['Accept']        = 'application/vnd.github+json'
+  req['User-Agent']    = 'ruby-github-client'
+  req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV['GITHUB_TOKEN']
+
+  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
+  { code: res.code, body: JSON.parse(res.body) }
+end
+
+def cmd_dependabot
+  config = YAML.load_file('repos.yml')
+
+  config['repos'].each do |entry|
+    owner = entry['owner']
+    repo  = entry['repo']
+
+    puts "=== #{owner}/#{repo} ==="
+    result = fetch_dependabot_alerts(owner, repo)
+    alerts = result[:body]
+
+    if alerts.is_a?(Hash) && alerts['message']
+      if result[:code] == '404' || alerts['message'].downcase.include?('not enabled')
+        puts '  Dependabot not enabled.'
+      else
+        puts "  Error: #{alerts['message']}"
+      end
+    elsif alerts.empty?
+      puts '  No open Dependabot alerts.'
+    else
+      alerts.each do |alert|
+        pkg      = alert.dig('dependency', 'package', 'name')
+        severity = alert.dig('security_vulnerability', 'severity') || 'unknown'
+        summary  = alert.dig('security_advisory', 'summary') || 'N/A'
+        puts "  [#{severity.upcase}] #{pkg} - #{summary}"
+        puts "    URL: #{alert['html_url']}"
         puts
       end
     end
@@ -92,11 +149,14 @@ when 'prs'
   cmd_prs
 when 'sync'
   cmd_sync
+when 'dependabot'
+  cmd_dependabot
 else
   puts "Usage: bundle exec ruby main.rb <command>"
   puts ""
   puts "Commands:"
-  puts "  prs   Check open PRs for repos in repos.yml"
-  puts "  sync  Fetch all accessible repos and update repos.yml"
+  puts "  prs        Check open PRs for repos in repos.yml"
+  puts "  dependabot Check open Dependabot alerts for repos in repos.yml"
+  puts "  sync       Fetch all accessible repos and update repos.yml"
   exit 1
 end

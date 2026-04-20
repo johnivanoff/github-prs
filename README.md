@@ -27,9 +27,10 @@ Check open pull requests across multiple GitHub repos from the terminal.
 ## Usage
 
 ```bash
-bundle exec ruby main.rb prs    # check open PRs for all repos in repos.yml
-bundle exec ruby main.rb sync   # fetch all accessible repos and update repos.yml
-bundle exec ruby main.rb        # show help
+bundle exec ruby main.rb prs        # check open PRs for all repos in repos.yml
+bundle exec ruby main.rb dependabot # check open Dependabot alerts (if enabled)
+bundle exec ruby main.rb sync       # fetch all accessible repos and update repos.yml
+bundle exec ruby main.rb            # show help
 ```
 
 ## Configuration
@@ -38,7 +39,7 @@ Repos are stored in `repos.yml`:
 
 ```yaml
 repos:
-  - owner: johnivanoff
+  - owner: USERNAME
     repo: cpord
   - owner: some-org
     repo: other-repo
