@@ -1,0 +1,17 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    dotenv (3.2.0)
+
+PLATFORMS
+  arm64-darwin-24
+  ruby
+
+DEPENDENCIES
+  dotenv
+
+CHECKSUMS
+  dotenv (3.2.0)
+
+BUNDLED WITH
+  4.0.7
