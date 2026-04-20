@@ -50,8 +50,15 @@ def fetch_all_repos
   repos
 end
 
+def load_repos_config
+  unless File.exist?('repos.yml')
+    abort "repos.yml not found. Run `bundle exec ruby main.rb sync` to generate it."
+  end
+  YAML.load_file('repos.yml')
+end
+
 def cmd_prs
-  config = YAML.load_file('repos.yml')
+  config = load_repos_config
 
   config['repos'].each do |entry|
     owner = entry['owner']
@@ -91,7 +98,7 @@ def fetch_dependabot_alerts(owner, repo)
 end
 
 def cmd_dependabot
-  config = YAML.load_file('repos.yml')
+  config = load_repos_config
 
   config['repos'].each do |entry|
     owner = entry['owner']
