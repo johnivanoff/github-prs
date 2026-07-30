@@ -2,7 +2,8 @@ require 'net/http'
 require 'json'
 require 'uri'
 require 'yaml'
-require 'dotenv/load'
+require 'dotenv'
+Dotenv.load(File.join(__dir__, '.env'))
 
 def fetch_repo_info(owner, repo)
   uri = URI("https://api.github.com/repos/#{owner}/#{repo}")
