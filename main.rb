@@ -51,10 +51,11 @@ def fetch_all_repos
 end
 
 def load_repos_config
-  unless File.exist?('repos.yml')
+  path = File.join(__dir__, 'repos.yml')
+  unless File.exist?(path)
     abort "repos.yml not found. Run `bundle exec ruby main.rb sync` to generate it."
   end
-  YAML.load_file('repos.yml')
+  YAML.load_file(path)
 end
 
 def cmd_prs
@@ -66,14 +67,16 @@ def cmd_prs
 
     info     = fetch_repo_info(owner, repo)
     archived = info['archived'] ? ' [ARCHIVED]' : ''
-    puts "=== #{owner}/#{repo}#{archived} ==="
+    # puts "=== #{owner}/#{repo}#{archived} ==="
     prs = fetch_open_prs(owner, repo)
 
     if prs.is_a?(Hash) && prs['message']
+      puts "=== #{owner}/#{repo}#{archived} ==="
       puts "  Error: #{prs['message']}"
     elsif prs.empty?
-      puts '  No open PRs found.'
+      # puts '  No open PRs found.'
     else
+     puts "=== #{owner}/#{repo}#{archived} ==="
       prs.each do |pr|
         puts "  ##{pr['number']} - #{pr['title']}"
         puts "    Author : #{pr['user']['login']}"
@@ -82,7 +85,7 @@ def cmd_prs
         puts
       end
     end
-    puts
+    # puts
   end
 end
 
@@ -145,7 +148,7 @@ def cmd_sync
     end
   }
 
-  File.write('repos.yml', YAML.dump(yaml_data))
+  File.write(File.join(__dir__, 'repos.yml'), YAML.dump(yaml_data))
   puts "\nrepos.yml updated."
 end
 
