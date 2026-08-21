@@ -5,6 +5,10 @@ require 'yaml'
 require 'dotenv'
 Dotenv.load(File.join(__dir__, '.env'))
 
+def abort_on_bad_credentials(data)
+  abort 'GitHub API error: Bad credentials' if data.is_a?(Hash) && data['message'] == 'Bad credentials'
+end
+
 def fetch_repo_info(owner, repo)
   uri = URI("https://api.github.com/repos/#{owner}/#{repo}")
   req = Net::HTTP::Get.new(uri)
@@ -13,7 +17,9 @@ def fetch_repo_info(owner, repo)
   req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV['GITHUB_TOKEN']
 
   res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-  JSON.parse(res.body)
+  data = JSON.parse(res.body)
+  abort_on_bad_credentials(data)
+  data
 end
 
 def fetch_open_prs(owner, repo)
@@ -24,7 +30,9 @@ def fetch_open_prs(owner, repo)
   req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV['GITHUB_TOKEN']
 
   res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-  JSON.parse(res.body)
+  data = JSON.parse(res.body)
+  abort_on_bad_credentials(data)
+  data
 end
 
 def fetch_all_repos
@@ -98,7 +106,9 @@ def fetch_dependabot_alerts(owner, repo)
   req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV['GITHUB_TOKEN']
 
   res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-  { code: res.code, body: JSON.parse(res.body) }
+  data = JSON.parse(res.body)
+  abort_on_bad_credentials(data)
+  { code: res.code, body: data }
 end
 
 def cmd_dependabot
