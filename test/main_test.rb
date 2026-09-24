@@ -67,4 +67,34 @@ class MainTest < Minitest::Test
     assert_kind_of String, json['timestamp']
     assert_equal 'example/demo', json['payload']['repo']
   end
+
+  def test_validate_command_reports_valid_config
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, 'repos.yml')
+      File.write(path, <<~YAML)
+        ---
+        repos:
+          - owner: example-user
+            repo: demo-app
+          - owner: some-org
+            repo: another-demo-repo
+      YAML
+
+      stdout = StringIO.new
+      old_stdout = $stdout
+      $stdout = stdout
+
+      begin
+        summary = cmd_validate(path, format: 'json')
+      ensure
+        $stdout = old_stdout
+      end
+
+      parsed = JSON.parse(stdout.string)
+      assert_equal true, parsed['valid']
+      assert_equal 2, parsed['repo_count']
+      assert_equal ['example-user/demo-app', 'some-org/another-demo-repo'], parsed['repos']
+      assert_equal summary['repo_count'], parsed['repo_count']
+    end
+  end
 end

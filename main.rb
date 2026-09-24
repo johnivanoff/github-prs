@@ -135,6 +135,47 @@ def load_repos_config(path = File.join(__dir__, 'repos.yml'))
   config
 end
 
+def validate_repos_config(config)
+  repos = config.fetch('repos', [])
+
+  summary = {
+    'valid' => true,
+    'repo_count' => repos.length,
+    'repos' => repos.map { |entry| "#{entry['owner']}/#{entry['repo']}" }
+  }
+
+  repos.each do |entry|
+    owner = entry['owner'].to_s.strip
+    repo  = entry['repo'].to_s.strip
+    if owner.empty? || repo.empty?
+      summary['valid'] = false
+      summary['error'] = 'Each repo entry must include non-empty "owner" and "repo" values.'
+      break
+    end
+  end
+
+  summary
+end
+
+def cmd_validate(path = File.join(__dir__, 'repos.yml'), format: 'text')
+  config = load_repos_config(path)
+  summary = validate_repos_config(config)
+
+  if format == 'json'
+    puts JSON.generate(summary)
+  else
+    puts "Validated #{summary['repo_count']} repo entries."
+    if summary['valid']
+      puts 'Configuration is valid.'
+    else
+      puts summary['error']
+      exit 1
+    end
+  end
+
+  summary
+end
+
 def cmd_prs
   config = load_repos_config
 
@@ -262,6 +303,11 @@ end
 
 if $PROGRAM_NAME == __FILE__
   command = ARGV[0]
+  format = if ARGV.include?('--json') || ARGV.include?('--format')
+             'json'
+           else
+             'text'
+           end
 
   case command
   when 'prs'
@@ -270,6 +316,8 @@ if $PROGRAM_NAME == __FILE__
     cmd_sync
   when 'dependabot'
     cmd_dependabot
+  when 'validate'
+    cmd_validate(format: format)
   else
     puts "Usage: bundle exec ruby main.rb <command>"
     puts ""
@@ -277,6 +325,7 @@ if $PROGRAM_NAME == __FILE__
     puts "  prs        Check open PRs for repos in repos.yml"
     puts "  dependabot Check open Dependabot alerts for repos in repos.yml"
     puts "  sync       Fetch all accessible repos and update repos.yml"
+    puts "  validate   Validate repos.yml structure and repo entries"
     exit 1
   end
 end

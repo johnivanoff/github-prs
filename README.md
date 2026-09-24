@@ -42,6 +42,8 @@ Check open pull requests across multiple GitHub repos from the terminal.
 bundle exec ruby main.rb prs        # check open PRs for all repos in repos.yml
 bundle exec ruby main.rb dependabot # check open Dependabot alerts for repos in repos.yml
 bundle exec ruby main.rb sync       # fetch all accessible repos and update repos.yml
+bundle exec ruby main.rb validate   # validate repos.yml structure and entries
+bundle exec ruby main.rb validate --json
 bundle exec ruby main.rb            # show help
 ```
 
