@@ -48,6 +48,8 @@ bundle exec ruby main.rb schedule --interval 300
 bundle exec ruby main.rb            # show help
 ```
 
+`--interval 300` means wait 300 seconds, or 5 minutes, between scheduled runs.
+
 If a repo does not have Dependabot enabled, or the GitHub token cannot access it, the command will report that instead of failing outright.
 
 ## Configuration
