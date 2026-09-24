@@ -9,28 +9,70 @@ def abort_on_bad_credentials(data)
   abort 'GitHub API error: Bad credentials' if data.is_a?(Hash) && data['message'] == 'Bad credentials'
 end
 
+def retry_delay_for(response)
+  return 1 unless response.respond_to?(:[])
+
+  retry_after = response['retry-after'] || response['Retry-After']
+  return retry_after.to_i if retry_after && retry_after.to_i.positive?
+
+  reset_at = response['x-ratelimit-reset'] || response['X-RateLimit-Reset']
+  if reset_at && reset_at.to_i.positive?
+    return [reset_at.to_i - Time.now.to_i, 1].max
+  end
+
+  remaining = response['x-ratelimit-remaining'] || response['X-RateLimit-Remaining']
+  return 1 if remaining && remaining.to_i.zero?
+
+  1
+end
+
+def retryable_response?(response)
+  return false unless response.respond_to?(:code)
+
+  code = response.code.to_i
+  return true if [429, 500, 502, 503, 504].include?(code)
+
+  if code == 403
+    remaining = response['x-ratelimit-remaining'] || response['X-RateLimit-Remaining']
+    return true if remaining && remaining.to_i.zero?
+  end
+
+  false
+end
+
+def github_get(uri, token = ENV['GITHUB_TOKEN'], max_retries: 3)
+  retries = 0
+
+  loop do
+    req = Net::HTTP::Get.new(uri)
+    req['Accept'] = 'application/vnd.github+json'
+    req['User-Agent'] = 'ruby-github-client'
+    req['Authorization'] = "Bearer #{token}" if token
+
+    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
+
+    if retryable_response?(response) && retries < max_retries
+      retries += 1
+      sleep retry_delay_for(response)
+      next
+    end
+
+    return response
+  end
+end
+
 def fetch_repo_info(owner, repo)
   uri = URI("https://api.github.com/repos/#{owner}/#{repo}")
-  req = Net::HTTP::Get.new(uri)
-  req['Accept']     = 'application/vnd.github+json'
-  req['User-Agent'] = 'ruby-github-client'
-  req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV['GITHUB_TOKEN']
-
-  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-  data = JSON.parse(res.body)
+  response = github_get(uri)
+  data = JSON.parse(response.body)
   abort_on_bad_credentials(data)
   data
 end
 
 def fetch_open_prs(owner, repo)
   uri = URI("https://api.github.com/repos/#{owner}/#{repo}/pulls?state=open")
-  req = Net::HTTP::Get.new(uri)
-  req['Accept']     = 'application/vnd.github+json'
-  req['User-Agent'] = 'ruby-github-client'
-  req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV['GITHUB_TOKEN']
-
-  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-  data = JSON.parse(res.body)
+  response = github_get(uri)
+  data = JSON.parse(response.body)
   abort_on_bad_credentials(data)
   data
 end
@@ -41,13 +83,8 @@ def fetch_all_repos
 
   loop do
     uri = URI("https://api.github.com/user/repos?per_page=100&page=#{page}&sort=full_name")
-    req = Net::HTTP::Get.new(uri)
-    req['Accept']        = 'application/vnd.github+json'
-    req['User-Agent']    = 'ruby-github-client'
-    req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}"
-
-    res  = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-    data = JSON.parse(res.body)
+    response = github_get(uri)
+    data = JSON.parse(response.body)
 
     abort "GitHub API error: #{data['message']}" if data.is_a?(Hash) && data['message']
     break if data.empty?
@@ -59,8 +96,7 @@ def fetch_all_repos
   repos
 end
 
-def load_repos_config
-  path = File.join(__dir__, 'repos.yml')
+def load_repos_config(path = File.join(__dir__, 'repos.yml'))
   unless File.exist?(path)
     abort "repos.yml not found. Run `bundle exec ruby main.rb sync` to generate it."
   end
@@ -117,15 +153,10 @@ end
 
 def fetch_dependabot_alerts(owner, repo)
   uri = URI("https://api.github.com/repos/#{owner}/#{repo}/dependabot/alerts?state=open&per_page=100")
-  req = Net::HTTP::Get.new(uri)
-  req['Accept']        = 'application/vnd.github+json'
-  req['User-Agent']    = 'ruby-github-client'
-  req['Authorization'] = "Bearer #{ENV['GITHUB_TOKEN']}" if ENV['GITHUB_TOKEN']
-
-  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-  data = JSON.parse(res.body)
+  response = github_get(uri)
+  data = JSON.parse(response.body)
   abort_on_bad_credentials(data)
-  { code: res.code, body: data }
+  { code: response.code, body: data }
 end
 
 def cmd_dependabot
@@ -206,21 +237,23 @@ def cmd_sync
   puts "\nrepos.yml updated."
 end
 
-command = ARGV[0]
+if $PROGRAM_NAME == __FILE__
+  command = ARGV[0]
 
-case command
-when 'prs'
-  cmd_prs
-when 'sync'
-  cmd_sync
-when 'dependabot'
-  cmd_dependabot
-else
-  puts "Usage: bundle exec ruby main.rb <command>"
-  puts ""
-  puts "Commands:"
-  puts "  prs        Check open PRs for repos in repos.yml"
-  puts "  dependabot Check open Dependabot alerts for repos in repos.yml"
-  puts "  sync       Fetch all accessible repos and update repos.yml"
-  exit 1
+  case command
+  when 'prs'
+    cmd_prs
+  when 'sync'
+    cmd_sync
+  when 'dependabot'
+    cmd_dependabot
+  else
+    puts "Usage: bundle exec ruby main.rb <command>"
+    puts ""
+    puts "Commands:"
+    puts "  prs        Check open PRs for repos in repos.yml"
+    puts "  dependabot Check open Dependabot alerts for repos in repos.yml"
+    puts "  sync       Fetch all accessible repos and update repos.yml"
+    exit 1
+  end
 end

@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ruby:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Syntax check
+        run: ruby -c main.rb
+
+      - name: Run tests
+        run: bundle exec ruby -Itest test/main_test.rb
+
+      - name: Dependency audit
+        run: |
+          gem install bundler-audit
+          bundle audit check --update
