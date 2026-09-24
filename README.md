@@ -28,6 +28,8 @@ Check open pull requests across multiple GitHub repos from the terminal.
 
    `sync` fetches every repo your account can access and rewrites `repos.yml` with the current list.
 
+   Important: `.env` and `repos.yml` are local-only files. Do not commit them to a public repository.
+
 ## Usage
 
 ```bash
@@ -52,3 +54,5 @@ repos:
 ```
 
 You can edit this file manually or use `sync` to regenerate it from your GitHub account. The file is expected to contain a YAML list under the `repos` key.
+
+For public repos, keep this file local and populated only with example repos or repos you are comfortable exposing.
