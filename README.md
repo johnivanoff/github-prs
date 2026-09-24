@@ -62,3 +62,14 @@ repos:
 You can edit this file manually or use `sync` to regenerate it from your GitHub account. The file is expected to contain a YAML list under the `repos` key.
 
 For public repos, keep this file local and populated only with example repos or repos you are comfortable exposing.
+
+## Repository Hygiene
+
+If this project is hosted on GitHub, use the repository settings below to reduce risk:
+
+- Protect the `main` branch and require a pull request before merges.
+- Require at least one approving review before merging changes.
+- Disable direct pushes to protected branches unless explicitly needed.
+- Restrict GitHub Actions permissions to the minimum required.
+- Avoid storing credentials in repo secrets unless absolutely necessary; prefer local environment variables for developer machines.
+- Keep CI focused on validation, dependency checks, and security scans only.
