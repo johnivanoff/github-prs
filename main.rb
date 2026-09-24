@@ -64,7 +64,24 @@ def load_repos_config
   unless File.exist?(path)
     abort "repos.yml not found. Run `bundle exec ruby main.rb sync` to generate it."
   end
-  YAML.load_file(path)
+
+  raw = File.read(path)
+  if raw.match?(/!ruby\b|!python\b|!!ruby|!!python/)
+    abort 'repos.yml contains disallowed YAML tags. Use plain YAML only.'
+  end
+
+  config = YAML.safe_load(raw, aliases: false) || {}
+  unless config.is_a?(Hash) && config['repos'].is_a?(Array)
+    abort 'repos.yml must contain a top-level "repos" array.'
+  end
+
+  config['repos'].each do |entry|
+    unless entry.is_a?(Hash) && entry['owner'] && entry['repo']
+      abort 'Each repo entry must include "owner" and "repo" strings.'
+    end
+  end
+
+  config
 end
 
 def cmd_prs
