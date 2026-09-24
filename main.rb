@@ -113,24 +113,30 @@ end
 
 def cmd_dependabot
   config = load_repos_config
+  grouped = {
+    errors: Hash.new { |errors, message| errors[message] = [] },
+    not_enabled: [],
+    no_open_alerts: []
+  }
 
   config['repos'].each do |entry|
     owner = entry['owner']
     repo  = entry['repo']
+    repo_name = "#{owner}/#{repo}"
 
-    puts "=== #{owner}/#{repo} ==="
     result = fetch_dependabot_alerts(owner, repo)
     alerts = result[:body]
 
     if alerts.is_a?(Hash) && alerts['message']
       if result[:code] == '404' || alerts['message'].downcase.include?('not enabled')
-        puts '  Dependabot not enabled.'
+        grouped[:not_enabled] << repo_name
       else
-        puts "  Error: #{alerts['message']}"
+        grouped[:errors][alerts['message']] << repo_name
       end
     elsif alerts.empty?
-      puts '  No open Dependabot alerts.'
+      grouped[:no_open_alerts] << repo_name
     else
+      puts "=== #{repo_name} ==="
       alerts.each do |alert|
         pkg      = alert.dig('dependency', 'package', 'name')
         severity = alert.dig('security_vulnerability', 'severity') || 'unknown'
@@ -139,7 +145,27 @@ def cmd_dependabot
         puts "    URL: #{alert['html_url']}"
         puts
       end
+      puts
     end
+  end
+
+  unless grouped[:errors].empty?
+    puts '=== Errors ==='
+    grouped[:errors].each do |message, repos|
+      puts "  #{message}"
+      repos.each { |repo| puts "    #{repo}" }
+    end
+    puts
+  end
+
+  {
+    'Dependabot not enabled' => grouped[:not_enabled],
+    'No open Dependabot alerts' => grouped[:no_open_alerts]
+  }.each do |heading, repos|
+    next if repos.empty?
+
+    puts "=== #{heading} ==="
+    repos.each { |repo| puts "  #{repo}" }
     puts
   end
 end
