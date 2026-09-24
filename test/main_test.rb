@@ -97,4 +97,34 @@ class MainTest < Minitest::Test
       assert_equal summary['repo_count'], parsed['repo_count']
     end
   end
+
+  def test_schedule_wrapper_validates_before_running
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, 'repos.yml')
+      File.write(path, <<~YAML)
+        ---
+        repos:
+          - owner: example-user
+            repo: demo-app
+      YAML
+
+      stdout = StringIO.new
+      old_stdout = $stdout
+      $stdout = stdout
+
+      begin
+        called = 0
+        cmd_schedule(path, interval_seconds: 0, max_iterations: 1, runner: lambda do
+          called += 1
+          puts 'runner-executed'
+        end)
+      ensure
+        $stdout = old_stdout
+      end
+
+      assert_equal 1, called
+      assert_match(/Configuration is valid\./, stdout.string)
+      assert_match(/runner-executed/, stdout.string)
+    end
+  end
 end

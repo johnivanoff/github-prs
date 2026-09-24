@@ -176,6 +176,21 @@ def cmd_validate(path = File.join(__dir__, 'repos.yml'), format: 'text')
   summary
 end
 
+def cmd_schedule(path = File.join(__dir__, 'repos.yml'), interval_seconds: 300, max_iterations: nil, runner: nil)
+  runner ||= -> { cmd_prs }
+  iterations = 0
+
+  loop do
+    cmd_validate(path)
+    runner.call
+    iterations += 1
+    break if max_iterations && iterations >= max_iterations
+    break if interval_seconds.to_i <= 0
+
+    sleep interval_seconds.to_i
+  end
+end
+
 def cmd_prs
   config = load_repos_config
 
@@ -318,6 +333,25 @@ if $PROGRAM_NAME == __FILE__
     cmd_dependabot
   when 'validate'
     cmd_validate(format: format)
+  when 'schedule'
+    interval_seconds = 300
+    max_iterations = nil
+    args = ARGV.drop(1)
+
+    while args.any?
+      case args.first
+      when '--interval'
+        args.shift
+        interval_seconds = args.shift.to_i
+      when '--iterations'
+        args.shift
+        max_iterations = args.shift.to_i
+      else
+        args.shift
+      end
+    end
+
+    cmd_schedule(interval_seconds: interval_seconds, max_iterations: max_iterations)
   else
     puts "Usage: bundle exec ruby main.rb <command>"
     puts ""
@@ -326,6 +360,7 @@ if $PROGRAM_NAME == __FILE__
     puts "  dependabot Check open Dependabot alerts for repos in repos.yml"
     puts "  sync       Fetch all accessible repos and update repos.yml"
     puts "  validate   Validate repos.yml structure and repo entries"
+    puts "  schedule   Run a PR check loop with validation between cycles"
     exit 1
   end
 end

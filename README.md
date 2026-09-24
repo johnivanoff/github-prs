@@ -44,6 +44,7 @@ bundle exec ruby main.rb dependabot # check open Dependabot alerts for repos in 
 bundle exec ruby main.rb sync       # fetch all accessible repos and update repos.yml
 bundle exec ruby main.rb validate   # validate repos.yml structure and entries
 bundle exec ruby main.rb validate --json
+bundle exec ruby main.rb schedule --interval 300
 bundle exec ruby main.rb            # show help
 ```
 
