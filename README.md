@@ -73,3 +73,33 @@ If this project is hosted on GitHub, use the repository settings below to reduce
 - Restrict GitHub Actions permissions to the minimum required.
 - Avoid storing credentials in repo secrets unless absolutely necessary; prefer local environment variables for developer machines.
 - Keep CI focused on validation, dependency checks, and security scans only.
+
+## Local Development and Release
+
+### Run locally
+
+1. Install Ruby dependencies:
+
+   ```bash
+   bundle install
+   ```
+
+2. Create a local `.env` from `.env.example` and add your token.
+3. Create a local `repos.yml` from `repos.yml.example` and add the repos you want to inspect.
+4. Run a command:
+
+   ```bash
+   bundle exec ruby main.rb prs
+   bundle exec ruby main.rb dependabot
+   bundle exec ruby main.rb sync
+   ```
+
+### Publish safely
+
+1. Make sure `.env` and `repos.yml` are not tracked by Git.
+2. Keep only example or non-sensitive data in the public repo.
+3. Review the repo for tokens, private usernames, or internal project names before pushing.
+4. Protect the default branch and require review before merging.
+5. Publish the repo only after the local secret files and private repo metadata have been removed.
+
+This keeps the project usable for contributors while preventing accidental credential or repo leakage in a public repository.
