@@ -46,7 +46,7 @@ Repos are stored in `repos.yml`:
 ```yaml
 repos:
   - owner: USERNAME
-    repo: cpord
+    repo: bestapp
   - owner: some-org
     repo: other-repo
 ```
