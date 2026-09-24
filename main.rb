@@ -5,6 +5,17 @@ require 'yaml'
 require 'dotenv'
 Dotenv.load(File.join(__dir__, '.env'))
 
+module GitHubChecks
+  def self.log(event, payload = {})
+    entry = {
+      'timestamp' => Time.now.utc.iso8601,
+      'event' => event,
+      'payload' => payload
+    }
+    puts JSON.generate(entry)
+  end
+end
+
 def abort_on_bad_credentials(data)
   abort 'GitHub API error: Bad credentials' if data.is_a?(Hash) && data['message'] == 'Bad credentials'
 end
@@ -98,21 +109,25 @@ end
 
 def load_repos_config(path = File.join(__dir__, 'repos.yml'))
   unless File.exist?(path)
+    GitHubChecks.log('config_missing', { 'path' => path })
     abort "repos.yml not found. Run `bundle exec ruby main.rb sync` to generate it."
   end
 
   raw = File.read(path)
   if raw.match?(/!ruby\b|!python\b|!!ruby|!!python/)
+    GitHubChecks.log('config_unsafe_yaml', { 'path' => path })
     abort 'repos.yml contains disallowed YAML tags. Use plain YAML only.'
   end
 
   config = YAML.safe_load(raw, aliases: false) || {}
   unless config.is_a?(Hash) && config['repos'].is_a?(Array)
+    GitHubChecks.log('config_invalid_structure', { 'path' => path, 'type' => config.class.to_s })
     abort 'repos.yml must contain a top-level "repos" array.'
   end
 
   config['repos'].each do |entry|
     unless entry.is_a?(Hash) && entry['owner'] && entry['repo']
+      GitHubChecks.log('config_invalid_entry', { 'entry' => entry })
       abort 'Each repo entry must include "owner" and "repo" strings.'
     end
   end
@@ -133,9 +148,11 @@ def cmd_prs
     prs = fetch_open_prs(owner, repo)
 
     if prs.is_a?(Hash) && prs['message']
+      GitHubChecks.log('repo_prs_error', { 'repo' => "#{owner}/#{repo}", 'message' => prs['message'] })
       puts "=== #{owner}/#{repo}#{archived} ==="
       puts "  Error: #{prs['message']}"
     elsif prs.empty?
+      GitHubChecks.log('repo_prs_skipped', { 'repo' => "#{owner}/#{repo}", 'reason' => 'no_open_prs' })
       # puts '  No open PRs found.'
     else
      puts "=== #{owner}/#{repo}#{archived} ==="
@@ -178,11 +195,14 @@ def cmd_dependabot
     if alerts.is_a?(Hash) && alerts['message']
       if result[:code] == '404' || alerts['message'].downcase.include?('not enabled')
         grouped[:not_enabled] << repo_name
+        GitHubChecks.log('dependabot_not_enabled', { 'repo' => repo_name })
       else
         grouped[:errors][alerts['message']] << repo_name
+        GitHubChecks.log('dependabot_error', { 'repo' => repo_name, 'message' => alerts['message'] })
       end
     elsif alerts.empty?
       grouped[:no_open_alerts] << repo_name
+      GitHubChecks.log('dependabot_no_alerts', { 'repo' => repo_name })
     else
       puts "=== #{repo_name} ==="
       alerts.each do |alert|
@@ -198,6 +218,9 @@ def cmd_dependabot
   end
 
   unless grouped[:errors].empty?
+    grouped[:errors].each do |message, repos|
+      GitHubChecks.log('dependabot_group_error', { 'message' => message, 'repos' => repos })
+    end
     puts '=== Errors ==='
     grouped[:errors].each do |message, repos|
       puts "  #{message}"

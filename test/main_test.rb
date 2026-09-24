@@ -50,4 +50,21 @@ class MainTest < Minitest::Test
     assert_operator delay, :>=, 1
     assert_operator delay, :<=, 60
   end
+
+  def test_logger_emits_valid_json_event
+    stdout = StringIO.new
+    old_stdout = $stdout
+    $stdout = stdout
+
+    begin
+      GitHubChecks.log('dependabot_no_alerts', { 'repo' => 'example/demo' })
+    ensure
+      $stdout = old_stdout
+    end
+
+    json = JSON.parse(stdout.string)
+    assert_equal 'dependabot_no_alerts', json['event']
+    assert_kind_of String, json['timestamp']
+    assert_equal 'example/demo', json['payload']['repo']
+  end
 end
