@@ -30,6 +30,12 @@ Check open pull requests across multiple GitHub repos from the terminal.
 
    Important: `.env` and `repos.yml` are local-only files. Do not commit them to a public repository.
 
+## Token Safety
+
+- Keep your GitHub token in `.env` only on your local machine; never commit it to Git or share it in screenshots, issues, or logs.
+- Use the minimum token scope needed for the task. This project requires the `repo` scope for GitHub API access.
+- Rotate the token regularly, revoke old tokens, and replace it immediately if it is exposed or suspected to be compromised.
+
 ## Usage
 
 ```bash
