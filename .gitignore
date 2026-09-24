@@ -1,2 +1,5 @@
 .env
+.env.*
+!.env.example
 repos.yml
+!repos.yml.example

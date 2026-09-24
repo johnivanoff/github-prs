@@ -16,7 +16,7 @@ Check open pull requests across multiple GitHub repos from the terminal.
    bundle install
    ```
 
-2. Create a `.env` file in the project root with your GitHub token:
+2. Copy `.env.example` to `.env` and add your GitHub token:
 
    ```
    GITHUB_TOKEN=your_token_here
@@ -24,7 +24,7 @@ Check open pull requests across multiple GitHub repos from the terminal.
 
    This token is used for GitHub API requests for both PR and Dependabot checks.
 
-3. Edit `repos.yml` to list the repos you want to track, or run `sync` to populate it automatically.
+3. Copy `repos.yml.example` to `repos.yml` and add the repos you want to track, or run `sync` to populate it automatically.
 
    `sync` fetches every repo your account can access and rewrites `repos.yml` with the current list.
 
@@ -41,14 +41,14 @@ If a repo does not have Dependabot enabled, or the GitHub token cannot access it
 
 ## Configuration
 
-Repos are stored in `repos.yml`:
+Create a local `repos.yml` from the example file and add the repos you want to track:
 
 ```yaml
 repos:
-  - owner: USERNAME
-    repo: bestapp
+  - owner: example-user
+    repo: demo-app
   - owner: some-org
-    repo: other-repo
+    repo: another-demo-repo
 ```
 
 You can edit this file manually or use `sync` to regenerate it from your GitHub account. The file is expected to contain a YAML list under the `repos` key.

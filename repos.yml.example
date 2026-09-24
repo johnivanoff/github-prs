@@ -1,0 +1,6 @@
+---
+repos:
+  - owner: example-user
+    repo: demo-app
+  - owner: some-org
+    repo: another-demo-repo
